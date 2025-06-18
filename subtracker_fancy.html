@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>YouTube Subscriber Tracker</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #0f0f0f;
+      color: #f0f0f0;
+      padding: 30px;
+      overflow-x: hidden;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 40px;
+      gap: 15px;
+    }
+
+    .header img {
+      height: 48px;
+    }
+
+    .header h1 {
+      font-size: 36px;
+      background: linear-gradient(90deg, #00F0FF, #FCD200);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: glow 2s infinite alternate;
+    }
+
+    @keyframes glow {
+      from { text-shadow: 0 0 10px #00F0FF; }
+      to { text-shadow: 0 0 20px #FCD200; }
+    }
+
+    .channel {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      background: rgba(30, 30, 30, 0.9);
+      backdrop-filter: blur(8px);
+      padding: 16px 24px;
+      margin-bottom: 20px;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 4px 20px rgba(0, 240, 255, 0.05);
+      transform: translateY(20px);
+      opacity: 0;
+      animation: fadeUp 0.6s ease forwards;
+    }
+
+    .channel:nth-child(1) { animation-delay: 0.1s; }
+    .channel:nth-child(2) { animation-delay: 0.2s; }
+    .channel:nth-child(3) { animation-delay: 0.3s; }
+
+    @keyframes fadeUp {
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    @keyframes cardPulse {
+      0% {
+        box-shadow: 0 0 0px #00F0FF;
+        background-color: #1e1e1e;
+      }
+      50% {
+        box-shadow: 0 0 15px #00F0FF;
+        background-color: #202d31;
+      }
+      100% {
+        box-shadow: 0 0 0px #00F0FF;
+        background-color: #1e1e1e;
+      }
+    }
+
+    .card-pulse {
+      animation: cardPulse 0.6s ease;
+    }
+
+    .thumb {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid #ffffff;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.15);
+    }
+
+    .details h2 {
+      margin: 0 0 6px;
+      font-size: 24px;
+      color: #FCD200;
+      font-weight: 600;
+    }
+
+    .details p {
+      margin: 0;
+      font-size: 18px;
+      color: #cccccc;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/b/b8/YouTube_Logo_2017.svg" alt="YouTube Logo">
+    <h1>YouTube Subscriber Tracker</h1>
+  </div>
+
+  <div id="results"></div>
+
+  <script>
+    const API_KEY = 'YOUR_API_KEY_HERE'; // Replace with your actual YouTube Data API v3 key
+    const channels = [
+      { id: 'UCX6OQ3DkcsbYNE6H8uQQuVA', name: 'MrBeast' },
+      { id: 'UCBR8-60-B28hp2BmDPdntcQ', name: 'YouTube Spotlight' },
+    ];
+
+    //localStorage.removeItem('prevSubs');
+    //localStorage.removeItem('lastDeltas');
+    let previousCounts = JSON.parse(localStorage.getItem('prevSubs')) || {};
+    let lastDeltas = JSON.parse(localStorage.getItem('lastDeltas')) || {};
+
+    async function fetchSubs() {
+      const ids = channels.map(ch => ch.id).join(',');
+      const url = `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&id=${ids}&key=${API_KEY}`;
+      const res = await fetch(url);
+      const data = await res.json();
+
+      const sortedItems = data.items.sort((a, b) => {
+        return parseInt(b.statistics.subscriberCount) - parseInt(a.statistics.subscriberCount);
+      });
+
+      const results = document.getElementById('results');
+      results.innerHTML = '';
+
+      sortedItems.forEach((item, index) => {
+        const id = item.id;
+        const name = item.snippet.title;
+        const subs = parseInt(item.statistics.subscriberCount);
+        const thumb = item.snippet.thumbnails.high.url;
+
+        let delta = '';
+        let cardPulseClass = '';
+
+        if (previousCounts[id] !== undefined) {
+          const diff = subs - previousCounts[id];
+
+          if (diff !== 0) {
+            cardPulseClass = 'card-pulse';
+
+            if (diff > 0) {
+              delta = ` <span style="color: #00FF88;">▲ +${diff.toLocaleString()}</span>`;
+            } else {
+              delta = ` <span style="color: #FF5555;">▼ ${Math.abs(diff).toLocaleString()}</span>`;
+            }
+
+            lastDeltas[id] = delta;
+          } else {
+            delta = lastDeltas[id] || '';
+          }
+        }
+
+        previousCounts[id] = subs;
+
+        results.innerHTML += `
+          <div class="channel ${cardPulseClass}" style="animation-delay: ${index * 0.1}s;">
+            <img class="thumb" src="${thumb}" alt="${name} Thumbnail">
+            <div class="details">
+              <h2>${name}</h2>
+              <p>
+                <span style="color:#00F0FF;">Subscribers:</span>
+                <span style="color:#FFFFFF;"> ${subs.toLocaleString()}</span>
+                ${delta}
+              </p>
+            </div>
+          </div>
+        `;
+      });
+
+      localStorage.setItem('prevSubs', JSON.stringify(previousCounts));
+      localStorage.setItem('lastDeltas', JSON.stringify(lastDeltas));
+    }
+
+    fetchSubs();
+    setInterval(fetchSubs, 30000); // Update every 10 seconds
+  </script>
+</body>
+</html>
