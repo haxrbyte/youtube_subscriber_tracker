@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>YouTube Subscriber Tracker</title>
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    h2 { margin-bottom: 5px; }
+    .channel { margin-bottom: 15px; }
+  </style>
+</head>
+<body>
+  <h1>YouTube Subscriber Tracker</h1>
+  <div id="results"></div>
+
+  <script>
+    const API_KEY = 'YOUR_API_KEY_HERE';
+    const channels = [
+      { id: 'UCX6OQ3DkcsbYNE6H8uQQuVA', name: 'MrBeast' },
+      { id: 'UCBR8-60-B28hp2BmDPdntcQ', name: 'YouTube Spotlight' },
+      // Add more here
+    ];
+
+    async function fetchSubs() {
+      const ids = channels.map(ch => ch.id).join(',');
+      const url = `https://www.googleapis.com/youtube/v3/channels?part=statistics&id=${ids}&key=${API_KEY}`;
+      const res = await fetch(url);
+      const data = await res.json();
+
+      const results = document.getElementById('results');
+      results.innerHTML = '';
+      data.items.forEach(item => {
+        const name = channels.find(ch => ch.id === item.id)?.name || item.id;
+        const subs = item.statistics.subscriberCount;
+        results.innerHTML += `<div class="channel"><h2>${name}</h2>Subscribers: ${subs}</div>`;
+      });
+    }
+
+    fetchSubs();
+    setInterval(fetchSubs, 10000); // Refresh every 10 seconds
+  </script>
+</body>
+</html>
